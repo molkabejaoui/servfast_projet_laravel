@@ -85,24 +85,31 @@ class AuthController extends Controller
     }
 
     public function updateProfile(Request $request)
-    {
-        $validated = $request->validate([
-            'full_name' => 'sometimes|string|max:255',
-            'phone'     => 'sometimes|nullable|string|max:20',
-            'city'      => 'sometimes|nullable|string|max:100',
-            'avatar'    => 'sometimes|nullable|image|max:2048',
-        ]);
+{
+    $validated = $request->validate([
+        'full_name' => 'sometimes|string|max:255',
+        'phone'     => 'sometimes|nullable|string|max:20',
+        'city'      => 'sometimes|nullable|string|max:100',
+        'bio'       => 'sometimes|nullable|string|max:1000',
+        'avatar'    => 'sometimes|nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+    ]);
 
-        if ($request->hasFile('avatar')) {
-            $path = $request->file('avatar')->store('avatars', 'public');
-            $validated['avatar'] = $path;
+    $user = $request->user();
+    $data = collect($validated)->except('avatar')->toArray();
+
+    if ($request->hasFile('avatar')) {
+        // Supprimer l'ancien avatar s'il existe (et n'est pas une URL externe)
+        if ($user->avatar && !filter_var($user->avatar, FILTER_VALIDATE_URL)) {
+            \Illuminate\Support\Facades\Storage::disk('public')->delete($user->avatar);
         }
-
-        $request->user()->update($validated);
-
-        return response()->json([
-            'message' => 'Profil mis à jour',
-            'user'    => $request->user()->fresh(),
-        ]);
+        $data['avatar'] = $request->file('avatar')->store('avatars', 'public');
     }
+
+    $user->update($data);
+
+    return response()->json([
+        'message' => 'Profil mis à jour avec succès',
+        'user'    => $user->fresh(),
+    ]);
+}
 }

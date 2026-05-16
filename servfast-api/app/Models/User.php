@@ -19,6 +19,7 @@ class User extends Authenticatable
         'city',
         'role',           // 'client', 'provider', 'admin'
         'avatar',
+        'bio',
         'is_active',
     ];
 
@@ -34,6 +35,7 @@ class User extends Authenticatable
         'first_name',
         'last_name',
         'avatar_url',
+        
     ];
 
     public function getFirstNameAttribute(): string

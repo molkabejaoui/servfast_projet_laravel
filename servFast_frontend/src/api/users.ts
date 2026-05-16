@@ -7,16 +7,25 @@ export const usersApi = {
   },
 
   updateProfile: async (userData: FormData | object) => {
-    const response = await api.post('/me', userData); // ← PUT → POST
-    const currentUser = localStorage.getItem('user');
-    if (currentUser) {
-      localStorage.setItem('user', JSON.stringify({
-        ...JSON.parse(currentUser),
-        ...response.data.user
-      }));
-    }
-    return response.data;
-  },
+  const isFormData = userData instanceof FormData;
+
+  const response = await api.post('/me', userData, {
+    headers: {
+      'Content-Type': isFormData ? 'multipart/form-data' : 'application/json',
+    },
+  });
+
+  // Mettre à jour le localStorage
+  const currentUser = localStorage.getItem('user');
+  if (currentUser && response.data?.user) {
+    localStorage.setItem('user', JSON.stringify({
+      ...JSON.parse(currentUser),
+      ...response.data.user,
+    }));
+  }
+
+  return response.data;
+},
 
   getProviderProfile: async () => {
     const response = await api.get('/provider/profile');

@@ -1,38 +1,22 @@
-import { useState, useRef, useEffect } from "react";
-import Navbar from "../components/common/Navbar";
-import Footer from "../components/common/Footer";
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import Navbar from '../components/common/Navbar';
+import Footer from '../components/common/Footer';
+import { messagesApi } from '../api/messages';
+import { authApi } from '../api/auth';
 
-// ─── SVG Icon Library ─────────────────────────────────────────────────────────
+const STORAGE_URL = 'http://localhost:8000/storage/';
+function getImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return `${STORAGE_URL}${url}`;
+}
+
 const Icons = {
-  Dashboard: () => (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <rect x="1" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
-      <rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
-      <rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
-      <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
-    </svg>
-  ),
-  Messages: () => (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M14 10.667A1.333 1.333 0 0112.667 12H4.667L2 14.667V3.333A1.333 1.333 0 013.333 2h9.334A1.333 1.333 0 0114 3.333v7.334z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  Orders: () => (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M13.333 2H2.667A.667.667 0 002 2.667v10.666A.667.667 0 002.667 14h10.666A.667.667 0 0014 13.333V2.667A.667.667 0 0013.333 2z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M5.333 5.333h5.334M5.333 8h5.334M5.333 10.667H8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-    </svg>
-  ),
-  Analytics: () => (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M2 12l3.5-4 3 2.5L12 5.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M2 14h12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-    </svg>
-  ),
-  Settings: () => (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="8" r="2.5" stroke="currentColor" strokeWidth="1.4"/>
-      <path d="M8 1.5v1M8 13.5v1M1.5 8h1M13.5 8h1M3.4 3.4l.7.7M11.9 11.9l.7.7M3.4 12.6l.7-.7M11.9 4.1l.7-.7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+  Send: () => (
+    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+      <path d="M13.5 1.5L6.5 8.5M13.5 1.5L9 13.5l-2.5-5-5-2.5 12-4.5z"
+        stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
   Search: () => (
@@ -41,9 +25,26 @@ const Icons = {
       <path d="M10 10l2.5 2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
     </svg>
   ),
-  Paperclip: () => (
+  User: () => (
     <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-      <path d="M13 6.5L6.5 13a4 4 0 01-5.657-5.657l7-7a2.5 2.5 0 013.535 3.536L4.5 11.5a1 1 0 01-1.414-1.414L9.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
+      <circle cx="7.5" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.3"/>
+      <path d="M2 13c0-2.761 2.462-5 5.5-5s5.5 2.239 5.5 5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+    </svg>
+  ),
+  Check: () => (
+    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+      <path d="M2 5.5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  CheckDouble: () => (
+    <svg width="14" height="11" viewBox="0 0 14 11" fill="none">
+      <path d="M1 5.5l2.5 2.5L8 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M5 5.5l2.5 2.5L12 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  ),
+  ChevronRight: () => (
+    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+      <path d="M4.5 3l4 3.5-4 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
   Image: () => (
@@ -53,675 +54,551 @@ const Icons = {
       <path d="M1.5 10l3.5-3.5 2.5 2.5 2-2 3.5 3.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
   ),
-  Send: () => (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-      <path d="M13.5 1.5L6.5 8.5M13.5 1.5L9 13.5l-2.5-5-5-2.5 12-4.5z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  File: () => (
+  Bell: () => (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path d="M9 2H4.5A1.5 1.5 0 003 3.5v9A1.5 1.5 0 004.5 14h7a1.5 1.5 0 001.5-1.5V6L9 2z" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M9 2v4h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M5.5 9h5M5.5 11.5h3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+      <path d="M8 1.5A4.5 4.5 0 003.5 6v3l-1 1.5h11L12.5 9V6A4.5 4.5 0 008 1.5z" stroke="currentColor" strokeWidth="1.3"/>
+      <path d="M6.5 13.5a1.5 1.5 0 003 0" stroke="currentColor" strokeWidth="1.3"/>
     </svg>
   ),
-  Download: () => (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-      <path d="M6.5 1v8M3.5 6.5l3 3 3-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M1.5 10.5v1a.5.5 0 00.5.5h9a.5.5 0 00.5-.5v-1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-    </svg>
-  ),
-  Dots: () => (
-    <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-      <circle cx="7.5" cy="3" r="1" fill="currentColor"/>
-      <circle cx="7.5" cy="7.5" r="1" fill="currentColor"/>
-      <circle cx="7.5" cy="12" r="1" fill="currentColor"/>
-    </svg>
-  ),
-  Check: () => (
-    <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
-      <path d="M2 5.5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-    </svg>
-  ),
-  Plus: () => (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-      <path d="M6.5 2v9M2 6.5h9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-    </svg>
-  ),
-  ChevronRight: () => (
-    <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
-      <path d="M4.5 3l4 3.5-4 3.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+  Empty: () => (
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+      <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="1.5" strokeDasharray="4 4"/>
+      <path d="M16 28c0-4.418 3.582-8 8-8s8 3.582 8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="20" cy="21" r="1.5" fill="currentColor"/>
+      <circle cx="28" cy="21" r="1.5" fill="currentColor"/>
     </svg>
   ),
 };
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface ConversationItem {
-  id: string;
-  participant: { name: string; role: string; avatar: string; online: boolean };
-  lastMessage: string;
-  time: string;
-  unread: number;
-  orderId?: string;
-}
-
-interface ChatMessage {
-  id: string;
-  senderId: "me" | "other";
-  content: string;
-  timestamp: string;
-  type: "text" | "file";
-  fileName?: string;
-  fileSize?: string;
-}
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const conversations: ConversationItem[] = [
-  {
-    id: "1",
-    participant: {
-      name: "Sarah Johnson",
-      role: "Cloud Architect",
-      avatar: "https://i.pravatar.cc/40?img=5",
-      online: true,
-    },
-    lastMessage: "I've just reviewed the scope of work you sent and everything looks solid.",
-    time: "2m ago",
-    unread: 2,
-    orderId: "ORD-2847",
-  },
-  {
-    id: "2",
-    participant: {
-      name: "Travis Johnson",
-      role: "Security Analyst",
-      avatar: "https://i.pravatar.cc/40?img=12",
-      online: false,
-    },
-    lastMessage: "The project files have been updated, let me know when you're ready.",
-    time: "1h ago",
-    unread: 0,
-  },
-  {
-    id: "3",
-    participant: {
-      name: "Klaus Rodriguez",
-      role: "Data Engineer",
-      avatar: "https://i.pravatar.cc/40?img=18",
-      online: false,
-    },
-    lastMessage: "Morning — I'm open to adjustments on the Phase 2 delivery.",
-    time: "3h ago",
-    unread: 1,
-  },
-  {
-    id: "4",
-    participant: {
-      name: "Alessia Romano",
-      role: "Business Strategist",
-      avatar: "https://i.pravatar.cc/40?img=25",
-      online: true,
-    },
-    lastMessage: "Sounds great, let me know when you're available for a call.",
-    time: "Yesterday",
-    unread: 0,
-  },
-];
-
-const messagesByConv: Record<string, ChatMessage[]> = {
-  "1": [
-    {
-      id: "m1",
-      senderId: "other",
-      content:
-        "Hi there — I've reviewed the scope of work you sent and it's well-structured. I'd like to clarify a few points on the infrastructure migration timeline before we begin.",
-      timestamp: "10:14",
-      type: "text",
-    },
-    {
-      id: "m2",
-      senderId: "me",
-      content:
-        "Absolutely, happy to walk through any open questions. What specifically would you like to revisit?",
-      timestamp: "10:18",
-      type: "text",
-    },
-    {
-      id: "m3",
-      senderId: "other",
-      content:
-        "Mainly Phase 2 — I want to confirm the handover criteria before we lock in the sprint schedule. Also wanted to ask about rollback procedures in case of a failed migration.",
-      timestamp: "10:22",
-      type: "text",
-    },
-    {
-      id: "m4",
-      senderId: "me",
-      content:
-        "Good call. I've extended the Q2 sprint by two additional days to accommodate full validation. I've also drafted a revised roadmap with the rollback protocol included — attaching it now.",
-      timestamp: "10:35",
-      type: "text",
-    },
-    {
-      id: "m5",
-      senderId: "me",
-      content: "Revised_Roadmap_v2.pdf",
-      timestamp: "10:36",
-      type: "file",
-      fileName: "Revised_Roadmap_v2.pdf",
-      fileSize: "2.4 MB",
-    },
-    {
-      id: "m6",
-      senderId: "other",
-      content:
-        "Perfect — I'll review this with my team and get back to you before end of day. Thank you for being so thorough.",
-      timestamp: "10:41",
-      type: "text",
-    },
-  ],
-  "2": [
-    {
-      id: "m1",
-      senderId: "other",
-      content: "The project files have been updated. Ping me when you're ready to proceed.",
-      timestamp: "Yesterday",
-      type: "text",
-    },
-  ],
-  "3": [
-    {
-      id: "m1",
-      senderId: "other",
-      content:
-        "Morning — I'm available to adjust the Phase 2 delivery window if needed. What changes did you have in mind?",
-      timestamp: "9:00",
-      type: "text",
-    },
-  ],
-  "4": [
-    {
-      id: "m1",
-      senderId: "other",
-      content: "Sounds great. Let me know when you're available for a call this week.",
-      timestamp: "Mon",
-      type: "text",
-    },
-  ],
-};
-
-const navItems = [
-  { label: "Dashboard", Icon: Icons.Dashboard },
-  { label: "Messages", Icon: Icons.Messages, active: true, badge: 3 },
-  { label: "My Orders", Icon: Icons.Orders },
-  { label: "Analytics", Icon: Icons.Analytics },
-  { label: "Settings", Icon: Icons.Settings },
-];
-
-// ─── Sidebar ──────────────────────────────────────────────────────────────────
-function Sidebar({
-  activeId,
-  onSelect,
-}: {
-  activeId: string;
-  onSelect: (id: string) => void;
-}) {
-  const [search, setSearch] = useState("");
-  const filtered = conversations.filter((c) =>
-    c.participant.name.toLowerCase().includes(search.toLowerCase())
-  );
-
+function Avatar({ user, size = 36 }: { user: any; size?: number }) {
+  const imgUrl = getImageUrl(user?.avatar_url ?? user?.avatar);
+  const initial = (user?.full_name ?? user?.name ?? '?')[0]?.toUpperCase();
   return (
-    <aside
-      className="flex flex-col bg-white border-r border-gray-100"
-      style={{ width: 268, minWidth: 268 }}
-    >
-      {/* Navigation */}
-      <div className="px-4 pt-6 pb-4 border-b border-gray-100">
-        {navItems.map(({ label, Icon, active, badge }) => (
-          <button
-            key={label}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl mb-0.5 text-sm font-medium transition-all cursor-pointer ${
-              active
-                ? "bg-red-700 text-white shadow-sm"
-                : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
-            }`}
-          >
-            <span className={active ? "text-white" : "text-gray-400"}>
-              <Icon />
-            </span>
-            <span className="flex-1 text-left">{label}</span>
-            {badge && (
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
-                  active ? "bg-white text-red-700" : "bg-red-700 text-white"
-                }`}
-              >
-                {badge}
-              </span>
-            )}
-          </button>
-        ))}
-
-        <button className="w-full mt-3 flex items-center justify-center gap-2 border-2 border-red-700 text-red-700 text-xs font-bold py-2.5 rounded-xl hover:bg-red-700 hover:text-white transition-all cursor-pointer">
-          <Icons.Plus />
-          Post a Request
-        </button>
-      </div>
-
-      {/* Search */}
-      <div className="px-4 pt-4 pb-2">
-        <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-red-300 transition-colors">
-          <span className="text-gray-400 flex-shrink-0">
-            <Icons.Search />
-          </span>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search conversations..."
-            className="flex-1 bg-transparent text-xs text-gray-600 placeholder-gray-400 focus:outline-none"
-          />
-        </div>
-      </div>
-
-      <div className="px-4 py-2">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
-          Recent
-        </span>
-      </div>
-
-      {/* Conversation List */}
-      <div className="flex-1 overflow-y-auto">
-        {filtered.map((conv) => (
-          <button
-            key={conv.id}
-            onClick={() => onSelect(conv.id)}
-            className={`w-full flex items-start gap-3 px-4 py-3.5 text-left transition-all border-l-[3px] ${
-              activeId === conv.id
-                ? "bg-red-50 border-l-red-700"
-                : "border-l-transparent hover:bg-gray-50"
-            }`}
-          >
-            <div className="relative flex-shrink-0 mt-0.5">
-              <img
-                src={conv.participant.avatar}
-                alt={conv.participant.name}
-                className="w-9 h-9 rounded-full object-cover"
-              />
-              {conv.participant.online && (
-                <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex justify-between items-center mb-0.5">
-                <span
-                  className={`text-xs font-semibold truncate ${
-                    activeId === conv.id ? "text-red-700" : "text-gray-800"
-                  }`}
-                >
-                  {conv.participant.name}
-                </span>
-                <span className="text-[10px] text-gray-400 flex-shrink-0 ml-2">
-                  {conv.time}
-                </span>
-              </div>
-              <p className="text-[11px] text-gray-500 truncate leading-relaxed">
-                {conv.lastMessage}
-              </p>
-            </div>
-            {conv.unread > 0 && (
-              <span className="flex-shrink-0 bg-red-700 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center mt-1">
-                {conv.unread}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-    </aside>
-  );
-}
-
-// ─── Chat Area ────────────────────────────────────────────────────────────────
-function ChatArea({
-  conv,
-  messages,
-  onSend,
-}: {
-  conv: ConversationItem;
-  messages: ChatMessage[];
-  onSend: (text: string) => void;
-}) {
-  const [input, setInput] = useState("");
-  const bottomRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const handleSend = () => {
-    if (!input.trim()) return;
-    onSend(input.trim());
-    setInput("");
-  };
-
-  return (
-    <div className="flex-1 flex flex-col bg-white min-w-0">
-      {/* Header */}
-      <div className="flex items-center justify-between px-8 py-4 border-b border-gray-100 bg-white">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            <img
-              src={conv.participant.avatar}
-              alt={conv.participant.name}
-              className="w-10 h-10 rounded-full object-cover"
-            />
-            {conv.participant.online && (
-              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
-            )}
-          </div>
-          <div>
-            <div className="font-bold text-sm text-gray-900 leading-tight">
-              {conv.participant.name}
-            </div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xs text-gray-400">{conv.participant.role}</span>
-              {conv.orderId && (
-                <>
-                  <span className="text-gray-200 text-xs">·</span>
-                  <span className="text-xs font-semibold text-red-700 bg-red-50 px-2 py-0.5 rounded-md">
-                    {conv.orderId}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="w-8 h-8 rounded-lg border border-gray-200 text-gray-400 flex items-center justify-center hover:border-red-300 hover:text-red-600 transition-all cursor-pointer">
-            <Icons.Paperclip />
-          </button>
-          <button className="w-8 h-8 rounded-lg border border-gray-200 text-gray-400 flex items-center justify-center hover:border-red-300 hover:text-red-600 transition-all cursor-pointer">
-            <Icons.Dots />
-          </button>
-        </div>
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-8 py-6 space-y-4" style={{ background: "#fafafa" }}>
-        {messages.map((msg, i) => {
-          const isMe = msg.senderId === "me";
-          const showAvatar =
-            !isMe && (i === 0 || messages[i - 1]?.senderId !== "other");
-
-          return (
-            <div
-              key={msg.id}
-              className={`flex items-end gap-3 ${isMe ? "justify-end" : "justify-start"}`}
-            >
-              {/* Avatar placeholder for threading */}
-              {!isMe && (
-                <div className="w-7 flex-shrink-0 self-end">
-                  {showAvatar ? (
-                    <img
-                      src={conv.participant.avatar}
-                      alt=""
-                      className="w-7 h-7 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-7" />
-                  )}
-                </div>
-              )}
-
-              {msg.type === "file" ? (
-                <div
-                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl max-w-xs border ${
-                    isMe
-                      ? "bg-red-700 border-red-700 text-white rounded-br-sm"
-                      : "bg-white border-gray-200 text-gray-700 rounded-bl-sm shadow-sm"
-                  }`}
-                >
-                  <div
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                      isMe ? "bg-red-600" : "bg-red-50"
-                    }`}
-                  >
-                    <span className={isMe ? "text-white" : "text-red-700"}>
-                      <Icons.File />
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div
-                      className={`font-semibold text-xs truncate ${
-                        isMe ? "text-white" : "text-gray-800"
-                      }`}
-                    >
-                      {msg.fileName}
-                    </div>
-                    <div
-                      className={`text-[10px] mt-0.5 ${
-                        isMe ? "text-red-200" : "text-gray-400"
-                      }`}
-                    >
-                      {msg.fileSize} · PDF Document
-                    </div>
-                  </div>
-                  <button
-                    className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all cursor-pointer ${
-                      isMe
-                        ? "bg-white/20 hover:bg-white/30 text-white"
-                        : "bg-gray-100 hover:bg-red-50 text-gray-500 hover:text-red-700"
-                    }`}
-                  >
-                    <Icons.Download />
-                  </button>
-                </div>
-              ) : (
-                <div className={`flex flex-col gap-1 max-w-sm ${isMe ? "items-end" : "items-start"}`}>
-                  <div
-                    className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                      isMe
-                        ? "bg-red-700 text-white rounded-br-sm shadow-sm"
-                        : "bg-white text-gray-800 rounded-bl-sm border border-gray-100 shadow-sm"
-                    }`}
-                  >
-                    {msg.content}
-                  </div>
-                  <div
-                    className={`flex items-center gap-1 text-[10px] text-gray-400 ${
-                      isMe ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    {msg.timestamp}
-                    {isMe && (
-                      <span className="text-emerald-500">
-                        <Icons.Check />
-                      </span>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-        <div ref={bottomRef} />
-      </div>
-
-      {/* Input */}
-      <div className="px-8 py-5 border-t border-gray-100 bg-white">
-        <div className="flex items-end gap-3">
-          <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 focus-within:border-red-300 focus-within:bg-white transition-all">
-            <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder="Write your message..."
-              rows={1}
-              className="w-full bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none resize-none leading-relaxed"
-              style={{ maxHeight: 120 }}
-            />
-            <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-              <div className="flex gap-1">
-                <button className="w-7 h-7 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-red-600 flex items-center justify-center transition-all cursor-pointer">
-                  <Icons.Paperclip />
-                </button>
-                <button className="w-7 h-7 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-red-600 flex items-center justify-center transition-all cursor-pointer">
-                  <Icons.Image />
-                </button>
-              </div>
-              <span className="text-[10px] text-gray-400 select-none">
-                Enter to send · Shift+Enter for new line
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={handleSend}
-            disabled={!input.trim()}
-            className="w-11 h-11 bg-red-700 text-white rounded-xl flex items-center justify-center hover:bg-red-800 active:scale-95 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-sm flex-shrink-0 mb-0.5"
-          >
-            <Icons.Send />
-          </button>
-        </div>
+    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
+      <div
+        className="w-full h-full rounded-full overflow-hidden flex items-center justify-center text-white font-bold"
+        style={{ background: 'linear-gradient(135deg, #C0001B, #8B0013)', fontSize: size * 0.38 }}
+      >
+        {imgUrl
+          ? <img src={imgUrl} alt={user?.full_name} className="w-full h-full object-cover" />
+          : initial}
       </div>
     </div>
   );
 }
 
-// ─── Right Panel ──────────────────────────────────────────────────────────────
-function OrderPanel({ conv }: { conv: ConversationItem }) {
-  if (!conv.orderId) return null;
-
-  return (
-    <aside
-      className="border-l border-gray-100 bg-white flex flex-col"
-      style={{ width: 240, minWidth: 240 }}
-    >
-      <div className="px-5 py-5 border-b border-gray-100">
-        <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">
-          Order Details
-        </div>
-        <div className="bg-red-50 rounded-xl p-4">
-          <div className="text-xs font-bold text-red-700 mb-1">{conv.orderId}</div>
-          <div className="text-[11px] text-gray-600 leading-relaxed">
-            Enterprise Cloud Infrastructure Migration
-          </div>
-          <div className="h-px bg-red-100 my-3" />
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] text-gray-400">Status</span>
-            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
-              IN PROGRESS
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] text-gray-400">Value</span>
-            <span className="text-xs font-bold text-gray-900">$2,450</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-5 py-4 border-b border-gray-100">
-        <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">
-          Shared Files
-        </div>
-        {[
-          { name: "Revised_Roadmap_v2.pdf", size: "2.4 MB", date: "Today" },
-          { name: "Infrastructure_Audit.pdf", size: "1.1 MB", date: "Mon" },
-        ].map((f) => (
-          <div
-            key={f.name}
-            className="flex items-center gap-2 py-2.5 cursor-pointer group"
-          >
-            <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0 group-hover:bg-red-100 transition-colors">
-              <span className="text-red-700">
-                <Icons.File />
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-[11px] font-medium text-gray-700 truncate">
-                {f.name}
-              </div>
-              <div className="text-[10px] text-gray-400">
-                {f.size} · {f.date}
-              </div>
-            </div>
-            <span className="text-gray-300 group-hover:text-red-600 transition-colors">
-              <Icons.Download />
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <div className="px-5 py-4">
-        <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">
-          Provider
-        </div>
-        <div className="flex items-center gap-3">
-          <img
-            src={conv.participant.avatar}
-            alt=""
-            className="w-9 h-9 rounded-full object-cover"
-          />
-          <div>
-            <div className="text-xs font-semibold text-gray-800">
-              {conv.participant.name}
-            </div>
-            <div className="text-[10px] text-gray-400">{conv.participant.role}</div>
-          </div>
-        </div>
-        <button className="w-full mt-4 flex items-center justify-center gap-1.5 border border-gray-200 text-gray-600 text-xs font-semibold py-2.5 rounded-xl hover:border-red-300 hover:text-red-700 transition-all cursor-pointer">
-          View Profile
-          <Icons.ChevronRight />
-        </button>
-      </div>
-    </aside>
-  );
+function formatTime(dateStr: string) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diff = now.getTime() - d.getTime();
+  if (diff < 60_000) return "À l'instant";
+  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} min`;
+  if (diff < 86_400_000) return d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+function formatMsgTime(dateStr: string) {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+}
+
 export default function MessagingPage() {
-  const [activeId, setActiveId] = useState("1");
-  const [allMessages, setAllMessages] = useState(messagesByConv);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  const activeConv = conversations.find((c) => c.id === activeId)!;
-  const messages = allMessages[activeId] || [];
+  // ── currentUser : id toujours en string ──────────────────────────
+  const currentUser    = useRef<any>(authApi.getCurrentUser()).current;
+  const currentUserId  = String(currentUser?.id ?? '');
 
-  const handleSend = (text: string) => {
-    const newMsg: ChatMessage = {
-      id: `m${Date.now()}`,
-      senderId: "me",
-      content: text,
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      type: "text",
+  const [conversations,  setConversations]  = useState<any[]>([]);
+  const [activeUserId,   setActiveUserId]   = useState<string | null>(null);
+  // Cache des messages par userId — clé = string
+  const [messagesMap,    setMessagesMap]    = useState<Record<string, any[]>>({});
+  const [input,          setInput]          = useState('');
+  const [search,         setSearch]         = useState('');
+  const [loadingConvs,   setLoadingConvs]   = useState(true);
+  const [loadingMsgs,    setLoadingMsgs]    = useState(false);
+  const [sending,        setSending]        = useState(false);
+  const [notifCount,     setNotifCount]     = useState(0);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  // La conversation active
+  const activeConv = conversations.find(
+    c => String(c.other_user?.id) === String(activeUserId)
+  );
+
+  // Messages de la conversation active (jamais undefined)
+  const messages: any[] = activeUserId ? (messagesMap[activeUserId] ?? []) : [];
+
+  // ── 1. Charger les conversations + notifications ──────────────
+  useEffect(() => {
+    Promise.all([
+      messagesApi.getAllConversations(),
+      messagesApi.getNotifications(),
+    ])
+      .then(([convs, notifs]) => {
+        setConversations(convs);
+        setNotifCount(notifs.count ?? 0);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingConvs(false));
+  }, []);
+
+  // ── 2. Polling léger des notifications (toutes les 15 s) ──────
+  useEffect(() => {
+    const id = setInterval(async () => {
+      const notifs = await messagesApi.getNotifications();
+      setNotifCount(notifs.count ?? 0);
+      // Rafraîchir aussi l'aperçu des conversations (badge unread)
+      if (notifs.count > 0) {
+        messagesApi.getAllConversations()
+          .then(convs => setConversations(convs))
+          .catch(() => {});
+      }
+    }, 15_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // ── 3. Gérer ?userId= dans l'URL ─────────────────────────────
+  useEffect(() => {
+    const uid = searchParams.get('userId');
+    if (!uid) return;
+
+    setActiveUserId(uid);
+
+    const alreadyExists = conversations.some(
+      c => String(c.other_user?.id) === uid
+    );
+    if (alreadyExists) return;
+
+    messagesApi.getUserProfile(uid).then(profile => {
+      if (!profile) return;
+      const otherUser = profile.user ?? profile;
+      setConversations(prev => {
+        const exists = prev.some(c => String(c.other_user?.id) === uid);
+        if (exists) return prev;
+        return [
+          {
+            other_user:   otherUser,
+            last_message: '',
+            last_time:    new Date().toISOString(),
+            unread:       0,
+            service:      null,
+            service_id:   null,
+          },
+          ...prev,
+        ];
+      });
+    });
+  }, [searchParams, conversations.length]);
+
+  // ── 4. Charger les messages de la conversation active ─────────
+  useEffect(() => {
+    if (!activeUserId) return;
+    // Ne pas recharger si déjà en cache (le cache est vidé lors d'un handleSelectConv)
+    if (messagesMap[activeUserId] !== undefined) return;
+
+    setLoadingMsgs(true);
+    messagesApi.getConversation(activeUserId)
+      .then((arr: any[]) => {
+        setMessagesMap(prev => ({ ...prev, [activeUserId]: arr }));
+        // Remettre le badge unread à 0 dans la sidebar
+        setConversations(prev =>
+          prev.map(c =>
+            String(c.other_user?.id) === activeUserId ? { ...c, unread: 0 } : c
+          )
+        );
+      })
+      .catch(() => {
+        setMessagesMap(prev => ({ ...prev, [activeUserId]: [] }));
+      })
+      .finally(() => setLoadingMsgs(false));
+  }, [activeUserId, messagesMap]);
+
+  // ── 5. Scroll automatique vers le bas ─────────────────────────
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
+
+  // ── 6. Envoi de message ───────────────────────────────────────
+  const handleSend = useCallback(async () => {
+    if (!input.trim() || !activeUserId || sending) return;
+
+    setSending(true);
+    const text = input.trim();
+    setInput('');
+
+    // ── Message optimiste ──────────────────────────────────────
+    // sender_id = currentUserId (string) → isMe sera true
+    const tempId = `temp-${Date.now()}`;
+    const tempMsg = {
+      id:          tempId,
+      sender_id:   currentUserId,           // string
+      receiver_id: String(activeUserId),    // string
+      message:     text,
+      status:      'pending',
+      created_at:  new Date().toISOString(),
+      sender:      currentUser,
     };
-    setAllMessages((prev) => ({
+
+    setMessagesMap(prev => ({
       ...prev,
-      [activeId]: [...(prev[activeId] || []), newMsg],
+      [activeUserId]: [...(prev[activeUserId] ?? []), tempMsg],
     }));
+
+    try {
+      const serviceId = activeConv?.service_id ?? activeConv?.service?.id;
+
+      // POST /conversations/{userId}/reply
+      const res = await messagesApi.reply(activeUserId, {
+        message: text,
+        ...(serviceId ? { service_id: String(serviceId) } : {}),
+      });
+
+      // ── Le backend retourne { message, contact } ───────────
+      // contact est déjà normalisé (sender_id en string) par messages.ts
+      const savedContact = res?.contact ?? res?.data ?? res ?? {};
+
+      const savedMsg: any = {
+        // Étaler l'objet contact tel que retourné
+        ...savedContact,
+        // Forcer string pour la comparaison isMe
+        sender_id:   String(savedContact.sender_id   ?? currentUserId),
+        receiver_id: String(savedContact.receiver_id ?? activeUserId),
+        // Garantir le champ message et sender
+        message: savedContact.message ?? text,
+        sender:  savedContact.sender  ?? currentUser,
+        // Le statut vient du backend (pending par défaut)
+        status:  savedContact.status  ?? 'pending',
+      };
+
+      // Remplacer le message temporaire par la version sauvegardée
+      setMessagesMap(prev => ({
+        ...prev,
+        [activeUserId]: (prev[activeUserId] ?? []).map(m =>
+          m.id === tempId ? savedMsg : m
+        ),
+      }));
+
+      // Mettre à jour la sidebar
+      setConversations(prev => {
+        const exists = prev.some(c => String(c.other_user?.id) === String(activeUserId));
+        if (exists) {
+          return prev.map(c =>
+            String(c.other_user?.id) === String(activeUserId)
+              ? { ...c, last_message: text, last_time: new Date().toISOString() }
+              : c
+          );
+        }
+        return [
+          {
+            other_user:   activeConv?.other_user ?? null,
+            last_message: text,
+            last_time:    new Date().toISOString(),
+            unread:       0,
+            service:      activeConv?.service    ?? null,
+            service_id:   activeConv?.service_id ?? null,
+          },
+          ...prev,
+        ];
+      });
+
+    } catch (e) {
+      console.error('Erreur envoi message:', e);
+      // Rollback optimiste
+      setMessagesMap(prev => ({
+        ...prev,
+        [activeUserId]: (prev[activeUserId] ?? []).filter(m => m.id !== tempId),
+      }));
+      setInput(text);
+    } finally {
+      setSending(false);
+    }
+  }, [input, activeUserId, sending, currentUserId, currentUser, activeConv]);
+
+  // ── Sélectionner une conversation ────────────────────────────
+  const handleSelectConv = (userId: string) => {
+    if (userId === activeUserId) return;
+    setActiveUserId(userId);
+    setInput('');
+    // Vider le cache pour recharger les messages frais
+    setMessagesMap(prev => {
+      const next = { ...prev };
+      delete next[userId];
+      return next;
+    });
   };
 
+  const filteredConvs = conversations.filter(c =>
+    (c.other_user?.full_name ?? '').toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
-    <div
-      style={{ minWidth: 1280, fontFamily: "'DM Sans', sans-serif" }}
-      className="flex flex-col min-h-screen bg-white"
-    >
+    <div style={{ minWidth: 1280, fontFamily: "'DM Sans', sans-serif" }} className="flex flex-col min-h-screen bg-white">
       <Navbar />
-      <div
-        className="flex flex-1 overflow-hidden"
-        style={{ height: "calc(100vh - 65px)" }}
-      >
-        <Sidebar activeId={activeId} onSelect={setActiveId} />
-        <ChatArea conv={activeConv} messages={messages} onSend={handleSend} />
-        <OrderPanel conv={activeConv} />
+
+      <div className="flex flex-1 overflow-hidden" style={{ height: 'calc(100vh - 65px)' }}>
+
+        {/* ══════════════════════════════════════════════════════
+            SIDEBAR
+        ══════════════════════════════════════════════════════ */}
+        <aside className="flex flex-col bg-white border-r border-gray-100" style={{ width: 300, minWidth: 300 }}>
+          <div className="px-5 pt-5 pb-3">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-extrabold text-gray-900" style={{ fontFamily: "'Sora', sans-serif" }}>
+                Messages
+              </h2>
+              {/* Badge notifications */}
+              {notifCount > 0 && (
+                <span className="flex items-center gap-1 text-xs font-bold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                  <Icons.Bell />
+                  {notifCount} nouveau{notifCount > 1 ? 'x' : ''}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5 focus-within:border-red-300 transition-colors">
+              <span className="text-gray-400"><Icons.Search /></span>
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Rechercher..."
+                className="flex-1 bg-transparent text-xs text-gray-600 placeholder-gray-400 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            {loadingConvs ? (
+              <div className="flex justify-center py-8">
+                <div className="w-8 h-8 rounded-full border-2 border-red-600 border-t-transparent animate-spin" />
+              </div>
+            ) : filteredConvs.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-3 text-gray-400">
+                <Icons.Empty />
+                <p className="text-sm">Aucune conversation</p>
+                <p className="text-xs text-center px-6">Contactez un prestataire depuis une page service</p>
+              </div>
+            ) : (
+              filteredConvs.map(conv => {
+                const other    = conv.other_user ?? {};
+                const isActive = String(other.id) === String(activeUserId);
+                const lastMsg  = conv.last_message ?? conv.message ?? '';
+                const time     = formatTime(conv.last_time ?? conv.created_at ?? '');
+                const unread   = conv.unread ?? 0;
+
+                return (
+                  <button
+                    key={other.id ?? Math.random()}
+                    onClick={() => handleSelectConv(String(other.id))}
+                    className={`w-full flex items-start gap-3 px-5 py-3.5 text-left transition-all border-l-[3px] cursor-pointer ${
+                      isActive ? 'bg-red-50 border-l-red-700' : 'border-l-transparent hover:bg-gray-50'
+                    }`}
+                  >
+                    <Avatar user={other} size={38} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span className={`text-xs font-semibold truncate ${isActive ? 'text-red-700' : 'text-gray-800'}`}>
+                          {other.full_name ?? 'Utilisateur'}
+                        </span>
+                        <span className="text-[10px] text-gray-400 flex-shrink-0 ml-2">{time}</span>
+                      </div>
+                      <p className="text-[11px] text-gray-500 truncate leading-relaxed">{lastMsg || 'Nouvelle conversation'}</p>
+                      {conv.service?.title && (
+                        <p className="text-[10px] text-red-500 font-medium truncate mt-0.5">📦 {conv.service.title}</p>
+                      )}
+                    </div>
+                    {unread > 0 && (
+                      <span className="flex-shrink-0 bg-red-700 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center mt-1">
+                        {unread}
+                      </span>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </aside>
+
+        {/* ══════════════════════════════════════════════════════
+            ZONE CHAT
+        ══════════════════════════════════════════════════════ */}
+        {!activeUserId ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-gray-400 bg-gray-50">
+            <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center text-3xl">💬</div>
+            <p className="text-base font-semibold text-gray-600">Sélectionnez une conversation</p>
+            <p className="text-sm text-gray-400">ou contactez un prestataire depuis une page service</p>
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col bg-white min-w-0">
+
+            {/* ── Header ── */}
+            <div className="flex items-center justify-between px-8 py-4 border-b border-gray-100 bg-white shadow-sm">
+              {activeConv?.other_user ? (
+                <div className="flex items-center gap-4">
+                  <Avatar user={activeConv.other_user} size={44} />
+                  <div>
+                    <button
+                      onClick={() => navigate(`/users/${activeConv.other_user.id}/profile`)}
+                      className="font-bold text-sm text-gray-900 hover:text-red-700 transition-colors cursor-pointer bg-transparent border-none p-0 text-left leading-tight"
+                    >
+                      {activeConv.other_user.full_name}
+                    </button>
+                    {activeConv.service?.title && (
+                      <div className="mt-1">
+                        <span className="text-xs font-semibold text-red-700 bg-red-50 px-2 py-0.5 rounded-md">
+                          📦 {activeConv.service.title}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full bg-gray-100 animate-pulse" />
+                  <div className="space-y-1.5">
+                    <div className="w-32 h-3.5 bg-gray-100 rounded animate-pulse" />
+                    <div className="w-20 h-2.5 bg-gray-100 rounded animate-pulse" />
+                  </div>
+                </div>
+              )}
+
+              {activeConv?.other_user && (
+                <button
+                  onClick={() => navigate(`/users/${activeConv.other_user.id}/profile`)}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-red-700 border border-gray-200 hover:border-red-300 px-3 py-2 rounded-xl transition-all cursor-pointer bg-transparent"
+                >
+                  <Icons.User /> Voir le profil <Icons.ChevronRight />
+                </button>
+              )}
+            </div>
+
+            {/* ── Liste des messages ── */}
+            <div className="flex-1 overflow-y-auto px-8 py-6 space-y-1" style={{ background: '#fafafa' }}>
+              {loadingMsgs ? (
+                <div className="flex justify-center py-8">
+                  <div className="w-8 h-8 rounded-full border-2 border-red-600 border-t-transparent animate-spin" />
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-400 py-16">
+                  <span className="text-4xl">👋</span>
+                  <p className="text-sm font-medium">Début de la conversation</p>
+                  <p className="text-xs">Envoyez un message pour commencer</p>
+                </div>
+              ) : (
+                messages.map((msg: any, i: number) => {
+                  // ══════════════════════════════════════════════
+                  // isMe : les deux côtés sont des strings grâce à
+                  // normalizeMsg() dans messages.ts et à currentUserId
+                  // ══════════════════════════════════════════════
+                  const isMe = String(msg.sender_id) === currentUserId;
+
+                  const prevMsg        = i > 0 ? messages[i - 1] : null;
+                  const nextMsg        = i < messages.length - 1 ? messages[i + 1] : null;
+                  const isFirstInGroup = !prevMsg || String(prevMsg.sender_id) !== String(msg.sender_id);
+                  const isLastInGroup  = !nextMsg  || String(nextMsg.sender_id)  !== String(msg.sender_id);
+                  const otherUser      = activeConv?.other_user ?? msg.sender;
+                  const time           = formatMsgTime(msg.created_at);
+                  const marginTop      = isFirstInGroup && i > 0 ? 'mt-4' : 'mt-0.5';
+
+                  return (
+                    <div
+                      key={msg.id ?? i}
+                      className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'} ${marginTop}`}
+                    >
+                      {/* Avatar de l'interlocuteur — uniquement dernier msg du groupe */}
+                      {!isMe && (
+                        <div className="w-7 flex-shrink-0 self-end mb-0.5">
+                          {isLastInGroup
+                            ? <Avatar user={otherUser} size={28} />
+                            : <div className="w-7" />}
+                        </div>
+                      )}
+
+                      <div className={`flex flex-col gap-0.5 max-w-sm ${isMe ? 'items-end' : 'items-start'}`}>
+                        {/* Bulle */}
+                        <div
+                          className={`px-4 py-2.5 text-sm leading-relaxed break-words ${
+                            isMe
+                              ? `bg-red-700 text-white shadow-sm ${
+                                  isFirstInGroup && isLastInGroup ? 'rounded-2xl' :
+                                  isFirstInGroup                  ? 'rounded-2xl rounded-br-md' :
+                                  isLastInGroup                   ? 'rounded-2xl rounded-tr-md' :
+                                                                    'rounded-xl rounded-r-md'
+                                }`
+                              : `bg-white text-gray-800 border border-gray-100 shadow-sm ${
+                                  isFirstInGroup && isLastInGroup ? 'rounded-2xl' :
+                                  isFirstInGroup                  ? 'rounded-2xl rounded-bl-md' :
+                                  isLastInGroup                   ? 'rounded-2xl rounded-tl-md' :
+                                                                    'rounded-xl rounded-l-md'
+                                }`
+                          }`}
+                        >
+                          {msg.message}
+                        </div>
+
+                        {/* Heure + statut — dernier du groupe seulement */}
+                        {isLastInGroup && (
+                          <div className={`flex items-center gap-1 text-[10px] text-gray-400 px-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                            {time}
+                            {isMe && (
+                              <span className={msg.status === 'pending' ? 'text-gray-300' : 'text-emerald-500'}>
+                                {msg.status === 'pending' ? <Icons.Check /> : <Icons.CheckDouble />}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={bottomRef} />
+            </div>
+
+            {/* ── Champ de saisie ── */}
+            <div className="px-8 py-5 border-t border-gray-100 bg-white">
+              <div className="flex items-end gap-3">
+                <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 focus-within:border-red-300 focus-within:bg-white transition-all">
+                  <textarea
+                    value={input}
+                    onChange={e => setInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    placeholder="Écrivez votre message..."
+                    rows={1}
+                    className="w-full bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none resize-none leading-relaxed"
+                    style={{ maxHeight: 120 }}
+                  />
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                    <button className="w-7 h-7 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-red-600 flex items-center justify-center transition-all cursor-pointer">
+                      <Icons.Image />
+                    </button>
+                    <span className="text-[10px] text-gray-400 select-none">Entrée pour envoyer · Maj+Entrée nouvelle ligne</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim() || sending}
+                  className="w-11 h-11 bg-red-700 text-white rounded-xl flex items-center justify-center hover:bg-red-800 active:scale-95 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed shadow-sm flex-shrink-0 mb-0.5 border-none"
+                >
+                  {sending
+                    ? <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    : <Icons.Send />}
+                </button>
+              </div>
+            </div>
+
+          </div>
+        )}
       </div>
+
       <Footer />
     </div>
   );

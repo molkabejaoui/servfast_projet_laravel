@@ -10,10 +10,10 @@ export default function Footer() {
     <footer className="bg-red-50 border-t border-red-100 px-16 pt-12 pb-0">
       <div className="grid grid-cols-5 gap-12 pb-10">
         <div className="col-span-2">
-          <div className="font-extrabold text-xl text-red-700 mb-3">ServiceHub</div>
+          <div className="font-extrabold text-xl text-red-700 mb-3">ServFast</div>
           <p className="text-gray-400 text-sm leading-relaxed max-w-xs">
-            The premium marketplace for elite professionals. Quality, efficiency,
-            and professional reliability at your fingertips.
+            La plateforme tunisienne de mise en relation avec des prestataires qualifiés.
+            Trouvez rapidement le bon professionnel pour chaque besoin, où que vous soyez en Tunisie.
           </p>
         </div>
         {footerCols.map((col) => (
@@ -28,7 +28,7 @@ export default function Footer() {
         ))}
       </div>
       <div className="border-t border-red-100 py-4 text-center text-xs text-gray-300">
-        © 2024 ServiceHub Inc. All rights reserved.
+        © 2024 ServFast. Tous droits réservés.
       </div>
     </footer>
   );

@@ -27,21 +27,16 @@ class CategoryController extends Controller
 
     // Admin only
     public function store(Request $request)
-    {
-        if (!$request->user()->isAdmin()) {
-            return response()->json(['message' => 'Non autorisé'], 403);
-        }
+{
+    $validated = $request->validate([
+        'name'        => 'required|string|max:100|unique:categories',
+        'description' => 'nullable|string',
+        'icon'        => 'nullable|string',
+    ]);
 
-        $validated = $request->validate([
-            'name'        => 'required|string|max:100|unique:categories',
-            'description' => 'nullable|string',
-            'icon'        => 'nullable|string',
-            'slug'        => 'nullable|string|unique:categories',
-        ]);
+    $validated['slug'] = \Str::slug($validated['name']);
+    $category = Category::create($validated);
 
-        $validated['slug'] = $validated['slug'] ?? \Str::slug($validated['name']);
-        $category = Category::create($validated);
-
-        return response()->json($category, 201);
-    }
+    return response()->json($category, 201);
+}
 }

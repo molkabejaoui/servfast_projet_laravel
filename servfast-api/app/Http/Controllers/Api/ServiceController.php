@@ -95,7 +95,26 @@ class ServiceController extends Controller
             return response()->json(['message' => 'Non autorisé'], 403);
         }
 
+        // Récupérer la catégorie avant suppression
+        $category = $service->category;
+        $categoryId = $category?->id;
+
+        // Supprimer les photos du service
+        foreach ($service->photos as $photo) {
+            \Storage::disk('public')->delete($photo->photo_url);
+        }
+
+        // Supprimer le service
         $service->delete();
+
+        // Vérifier et supprimer la catégorie si elle n'a plus de services
+        if ($categoryId && $category) {
+            $remainingServices = Service::where('category_id', $categoryId)->count();
+            if ($remainingServices === 0) {
+                $category->delete();
+            }
+        }
+
         return response()->json(['message' => 'Service supprimé']);
     }
 

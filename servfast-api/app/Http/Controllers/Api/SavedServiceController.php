@@ -11,22 +11,23 @@ class SavedServiceController extends Controller
 {
     public function index(Request $request)
     {
-        $saved = $request->user()->savedServices()
-            ->with(['service.category', 'service.photos'])
+        $saved = SavedService::where('user_id', $request->user()->id)
+            ->with(['service.photos', 'service.category', 'service.user'])
             ->get()
-            ->pluck('service');
+            ->pluck('service')
+            ->filter();
 
-        return response()->json($saved);
+        return response()->json(['data' => $saved]);
     }
 
     public function store(Request $request, Service $service)
     {
-        $exists = SavedService::where('user_id', $request->user()->id)
+        $existing = SavedService::where('user_id', $request->user()->id)
             ->where('service_id', $service->id)
-            ->exists();
+            ->first();
 
-        if ($exists) {
-            return response()->json(['message' => 'Déjà dans vos favoris'], 422);
+        if ($existing) {
+            return response()->json(['message' => 'Déjà enregistré', 'saved' => true]);
         }
 
         SavedService::create([
@@ -34,7 +35,7 @@ class SavedServiceController extends Controller
             'service_id' => $service->id,
         ]);
 
-        return response()->json(['message' => 'Service sauvegardé'], 201);
+        return response()->json(['message' => 'Service enregistré', 'saved' => true], 201);
     }
 
     public function destroy(Request $request, Service $service)
@@ -43,6 +44,16 @@ class SavedServiceController extends Controller
             ->where('service_id', $service->id)
             ->delete();
 
-        return response()->json(['message' => 'Retiré des favoris']);
+        return response()->json(['message' => 'Service retiré des favoris', 'saved' => false]);
+    }
+
+    // ─── GET /services/{service}/is-saved ────────────────────────
+    public function isSaved(Request $request, Service $service)
+    {
+        $saved = SavedService::where('user_id', $request->user()->id)
+            ->where('service_id', $service->id)
+            ->exists();
+
+        return response()->json(['saved' => $saved]);
     }
 }

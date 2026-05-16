@@ -7,11 +7,13 @@ import { ForgotPasswordView } from './components/ForgotPasswordView';
 import { DashboardView } from './components/DashboardView';
 import HomePage from './pages/HomePage';
 import ServicesListingPage from './pages/ServicesListingPage';
-import ServiceDetailPage from './components/home/ServiceDetailPage';
+import ServiceDetailPage from './pages/Servicedetailpage';
 import MessagingPage from './pages/Messagingpage';
 import ProviderDashboard from './pages/ProviderDashboard';
 import { authApi } from './api/auth';
 import ProfilePage from './pages/ProfilePage';
+import PublicProfilePage from './pages/Publicprofilepage';
+
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const user = authApi.getCurrentUser();
@@ -23,14 +25,13 @@ function App() {
   return (
     <ThemeProvider>
       <Routes>
-        <Route path="/profile"   element={<ProfilePage />} />
         <Route path="/login" element={<LoginView />} />
         <Route path="/register" element={<RegisterView />} />
         <Route path="/forgot-password" element={<ForgotPasswordView />} />
-
+      <Route path="/users/:userId/profile" element={<PublicProfilePage />} />
         <Route path="/services" element={<ServicesListingPage />} />
         <Route path="/services/:id" element={<ServiceDetailPage />} />
-
+        <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><DashboardView /></ProtectedRoute>} />
         <Route path="/messages" element={<ProtectedRoute><MessagingPage /></ProtectedRoute>} />
         <Route path="/provider" element={<ProtectedRoute><ProviderDashboard /></ProtectedRoute>} />

@@ -9,15 +9,15 @@ export default function TestimonialBanner() {
       </div>
       <div className="bg-white/5 rounded-2xl p-8 border-l-4 border-red-700">
         <p className="text-gray-300 text-sm leading-loose italic mb-6">
-          "ServiceHub has completely transformed how we source enterprise talent.
+          "ServiceFast has completely transformed how we source enterprise talent.
           The vetting process is rigorous, and the speed at which we find top-tier
           experts is unparalleled. It's our go-to platform for every critical enterprise solution."
         </p>
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-full bg-red-700 flex items-center justify-center font-extrabold text-base shrink-0">T</div>
           <div>
-            <div className="font-bold text-sm">Thomas Anderson</div>
-            <div className="text-xs text-gray-400">CTO at Nexus Enterprises</div>
+            <div className="font-bold text-sm">farah and molka</div>
+            <div className="text-xs text-gray-400">CTO at farah and molka Enterprises</div>
           </div>
         </div>
       </div>
